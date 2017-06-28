@@ -1,0 +1,111 @@
+const assert =  require('assert');
+const request = require('supertest');
+const mongoose = require('mongoose');
+const app = require('../../app');
+const Driver = mongoose.model('driver');
+
+
+describe('Drivers Controller', () => {
+	it('POST request to /api/drivers create new driver', (done) => {
+		Driver.count().then(count => {
+
+			request(app)
+			.post('/api/drivers')
+			.send({ email: 'test@test.com' })
+			.end(() => {
+
+				Driver.count().then( newCount => {
+					assert(count + 1 === newCount);
+					done();
+				});
+				
+				// done();
+			});
+
+
+
+		});
+
+		
+	});
+
+	it('PUT request to /api/drivers/id edit existing driver', (done) => {
+		
+		const driver = new Driver({email: 't@t.com', driving: false});
+
+		driver.save().then(() => {
+
+			request(app)
+				.put('/api/drivers/' + driver._id)//es5
+				// .put(`/api/drivers/${driver._id}`)//es6
+				.send({driving: true})
+				.end(() => {
+					Driver.findOne({email: 't@t.com'})
+						.then(driver => {
+							assert(driver.driving === true);
+							done();
+						})
+				});
+
+		});
+		
+	});
+
+	it('DELETE request to /api/drivers/id delete existing driver', (done) => {
+		
+		const driver = new Driver({email: 'test@test.com'});
+
+		driver.save().then(() => {
+
+			request(app)
+				.delete('/api/drivers/' + driver._id)//es5
+				// .put(`/api/drivers/${driver._id}`)//es6				
+				.end(() => {
+					Driver.findOne({email: 'test@test.com'})
+						.then(driver => {
+							assert(driver === null);
+							done();
+						})
+				});
+
+		});
+		
+	});
+
+
+	it('GET to /api/drivers find drivers in location', (done) => {
+		
+		const seattleDriver = new Driver({
+			email: 'seattle@test.com',
+			geometry: { type: 'Point', coordinates: [-122.4759902, 47.6147628]}
+		});
+
+		const miamiDriver = new Driver({
+			email: 'miami@test.com',
+			geometry: { type: 'Point', coordinates: [-80.253, 25.791]}
+		});
+
+		Promise.all([seattleDriver.save(), miamiDriver.save()])
+
+
+
+		.then(() => {
+
+			request(app)
+				.get('/api/drivers?lng=-80&lat=25')//es5
+				// .put(`/api/drivers/${driver._id}`)//es6				
+				.end((err, response) => {
+					// console.log(response);
+					assert(response.body.length === 1);
+					assert(response.body[0].obj.email === 'miami@test.com');
+					done();
+				});
+
+		});
+		
+	});
+});
+
+
+
+
